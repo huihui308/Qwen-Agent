@@ -8,6 +8,8 @@ import os, random, shutil
 from pathlib import Path
 from dashscope import MultiModalConversation
 import dashscope
+import cv2
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -162,18 +164,39 @@ def call_with_local_file():
     """
     save_directory = '/home/david/david/code/Qwen-Agent/david/qwen-vlm/results'
     directory_path = '/home/david/david/code/Qwen-Agent/david/qwen-vlm/images'
+    clasess_save_dir = os.path.join(save_directory, "class")
+    emotion_save_dir = os.path.join(save_directory, "emotion")
     test_cnt = 20
     class_cnt = 7
+    emotion_cnt = 3
 
-    prepare_directory_simple(save_directory, class_cnt)
+    prepare_directory_simple(clasess_save_dir, class_cnt)
+    prepare_directory_simple(emotion_save_dir, emotion_cnt)
     images = get_random_image_files(directory_path, test_cnt)
     
     print(f"Found {len(images)} image files:")
-    result_list = [0 for _ in range(7)]
+    result_list = [0 for _ in range(class_cnt)]
+    emotion_rest_list = [0 for _ in range(emotion_cnt)]
     # print(result_list)
     for local_file_path in images:  # Print first 10 as example
         # print(local_file_path)
         # local_file_path = '/home/david/david/code/Qwen-Agent/david/images/444.jpg'
+        
+        image = cv2.imread(local_file_path)
+        hsv_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        h, s, v = cv2.split(hsv_image)
+        mean_h = np.mean(h)
+        print(f"file {local_file_path} mean h: {mean_h}")
+        if (0 <= mean_h <= 77) or (156 <= mean_h <= 179):
+            emotion_rest_list[0] = emotion_rest_list[0] + 1
+            write_result_copy_image(local_file_path, emotion_save_dir, "0", "积极")
+        elif 78 <= mean_h <= 124:
+            emotion_rest_list[1] = emotion_rest_list[1] + 1
+            write_result_copy_image(local_file_path, emotion_save_dir, "1", "中性")
+        else:
+            emotion_rest_list[2] = emotion_rest_list[2] + 1
+            write_result_copy_image(local_file_path, emotion_save_dir, "2", "消极")
+
         messages = [{
             'role': 'system',
             'content': [{
@@ -203,44 +226,37 @@ def call_with_local_file():
             dir_num = "0"
             if "动植物" in result:
                 result_list[0] = result_list[0] + 1
-                dir_num = "0"
-                write_result_copy_image(local_file_path, save_directory, dir_num, result)
+                write_result_copy_image(local_file_path, clasess_save_dir, "0", result)
             elif "动物" in result:
                 result_list[0] = result_list[0] + 1
-                dir_num = "0"
-                write_result_copy_image(local_file_path, save_directory, dir_num, result)
+                write_result_copy_image(local_file_path, clasess_save_dir, "0", result)
             elif "植物" in result:
                 result_list[0] = result_list[0] + 1
-                dir_num = "0"
-                write_result_copy_image(local_file_path, save_directory, dir_num, result)
+                write_result_copy_image(local_file_path, clasess_save_dir, "0", result)
             if "自然景观" in result:
                 result_list[1] = result_list[1] + 1
-                dir_num = "1"
-                write_result_copy_image(local_file_path, save_directory, dir_num, result)
+                write_result_copy_image(local_file_path, clasess_save_dir, "1", result)
             if "人物" in result:
                 result_list[2] = result_list[2] + 1
-                dir_num = "2"
-                write_result_copy_image(local_file_path, save_directory, dir_num, result)
+                write_result_copy_image(local_file_path, clasess_save_dir, "2", result)
             if "美食" in result:
                 result_list[3] = result_list[3] + 1
-                dir_num = "3"
-                write_result_copy_image(local_file_path, save_directory, dir_num, result)
+                write_result_copy_image(local_file_path, clasess_save_dir, "3", result)
             if "交通" in result:
                 result_list[4] = result_list[4] + 1
-                dir_num = "4"
-                write_result_copy_image(local_file_path, save_directory, dir_num, result)
+                write_result_copy_image(local_file_path, clasess_save_dir, "4", result)
             if "设施建筑" in result:
                 result_list[5] = result_list[5] + 1
-                dir_num = "5"
-                write_result_copy_image(local_file_path, save_directory, dir_num, result)
+                write_result_copy_image(local_file_path, clasess_save_dir, "5", result)
             if "文化艺术" in result:
                 result_list[6] = result_list[6] + 1
-                dir_num = "6"
-                write_result_copy_image(local_file_path, save_directory, dir_num, result)
+                write_result_copy_image(local_file_path, clasess_save_dir, "6", result)
         else:
             print(f"请求失败：{response.message}")
+
     result_list = [val/test_cnt for val in result_list]
-    print(result_list)
+    emotion_rest_list = [val/test_cnt for val in emotion_rest_list]
+    print(result_list, emotion_rest_list)
     print('-------------- results --------------')
     print('动植物: {}'.format(result_list[0]))
     print('自然景观: {}'.format(result_list[1]))
@@ -249,6 +265,10 @@ def call_with_local_file():
     print('美食: {}'.format(result_list[4]))
     print('设施建筑: {}'.format(result_list[5]))
     print('文化艺术: {}'.format(result_list[6]))
+    print('-------------------------------------')
+    print('积极: {}'.format(emotion_rest_list[0]))
+    print('中性: {}'.format(emotion_rest_list[1]))
+    print('消极: {}'.format(emotion_rest_list[2]))
     print('-------------------------------------')
 
 
